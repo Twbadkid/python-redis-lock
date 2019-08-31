@@ -197,6 +197,8 @@ class Lock(object):
                                        if auto_renewal
                                        else None)
         self._lock_renewal_thread = None
+        self.blocking = True
+        self.timeout = None
 
     @property
     def _held(self):
@@ -339,12 +341,20 @@ class Lock(object):
         logger.debug("Lock refresher has stopped")
 
     def __enter__(self):
-        acquired = self.acquire(blocking=True)
-        assert acquired, "Lock wasn't acquired, but blocking=True"
+        acquired = self.acquire(blocking=self.blocking, timeout=self.timeout)
+        if not acquired:
+            raise NotAcquired("Lock wasn't acquired, while blocking=%s and timeout=%s" % (self.blocking, self.timeout))
+
         return self
 
     def __exit__(self, exc_type=None, exc_value=None, traceback=None):
         self.release()
+
+    def set_blocking(self, blocking):
+        self.blocking = blocking
+
+    def set_timeout(self, timeout):
+        self.timeout = timeout
 
     def release(self):
         """Releases the lock, that was acquired with the same object.
